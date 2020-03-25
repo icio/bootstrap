@@ -1,6 +1,6 @@
 /*!
   * Bootstrap v4.4.1 (https://getbootstrap.com/)
-  * Copyright 2011-2019 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
+  * Copyright 2011-2020 The Bootstrap Authors (https://github.com/twbs/bootstrap/graphs/contributors)
   * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
   */
 (function (global, factory) {
@@ -9,8 +9,8 @@
   (global = global || self, factory(global.bootstrap = {}, global.jQuery, global.Popper));
 }(this, (function (exports, $, Popper) { 'use strict';
 
-  $ = $ && $.hasOwnProperty('default') ? $['default'] : $;
-  Popper = Popper && Popper.hasOwnProperty('default') ? Popper['default'] : Popper;
+  $ = $ && Object.prototype.hasOwnProperty.call($, 'default') ? $['default'] : $;
+  Popper = Popper && Object.prototype.hasOwnProperty.call(Popper, 'default') ? Popper['default'] : Popper;
 
   function _defineProperties(target, props) {
     for (var i = 0; i < props.length; i++) {
@@ -286,9 +286,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Alert =
-  /*#__PURE__*/
-  function () {
+  var Alert = /*#__PURE__*/function () {
     function Alert(element) {
       this._element = element;
     } // Getters
@@ -441,14 +439,17 @@
     DATA_TOGGLES: '[data-toggle="buttons"]',
     DATA_TOGGLE: '[data-toggle="button"]',
     DATA_TOGGLES_BUTTONS: '[data-toggle="buttons"] .btn',
+    DATA_TOGGLES_INPUTS: '[data-toggle="buttons"] input:not([type="hidden"])',
+    DATA_TOGGLE_BUTTONS: '[data-toggle="button"], [data-toggle="buttons"] .btn',
     INPUT: 'input:not([type="hidden"])',
     ACTIVE: '.active',
     BUTTON: '.btn'
   };
   var Event$1 = {
+    CHANGE_DATA_API: "change" + EVENT_KEY$1 + DATA_API_KEY$1,
     CLICK_DATA_API: "click" + EVENT_KEY$1 + DATA_API_KEY$1,
     FOCUS_BLUR_DATA_API: "focus" + EVENT_KEY$1 + DATA_API_KEY$1 + " " + ("blur" + EVENT_KEY$1 + DATA_API_KEY$1),
-    LOAD_DATA_API: "load" + EVENT_KEY$1 + DATA_API_KEY$1
+    LOAD_PAGESHOW_DATA_API: "load" + EVENT_KEY$1 + DATA_API_KEY$1 + " " + ("pageshow" + EVENT_KEY$1 + DATA_API_KEY$1)
   };
   /**
    * ------------------------------------------------------------------------
@@ -456,9 +457,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Button =
-  /*#__PURE__*/
-  function () {
+  var Button = /*#__PURE__*/function () {
     function Button(element) {
       this._element = element;
     } // Getters
@@ -468,51 +467,21 @@
 
     // Public
     _proto.toggle = function toggle() {
-      var triggerChangeEvent = true;
-      var addAriaPressed = true;
-      var rootElement = $(this._element).closest(Selector$1.DATA_TOGGLES)[0];
-
-      if (rootElement) {
-        var input = this._element.querySelector(Selector$1.INPUT);
-
-        if (input) {
-          if (input.type === 'radio') {
-            if (input.checked && this._element.classList.contains(ClassName$1.ACTIVE)) {
-              triggerChangeEvent = false;
-            } else {
-              var activeElement = rootElement.querySelector(Selector$1.ACTIVE);
-
-              if (activeElement) {
-                $(activeElement).removeClass(ClassName$1.ACTIVE);
-              }
-            }
-          } else if (input.type === 'checkbox') {
-            if (this._element.tagName === 'LABEL' && input.checked === this._element.classList.contains(ClassName$1.ACTIVE)) {
-              triggerChangeEvent = false;
-            }
-          } else {
-            // if it's not a radio button or checkbox don't add a pointless/invalid checked property to the input
-            triggerChangeEvent = false;
-          }
-
-          if (triggerChangeEvent) {
-            input.checked = !this._element.classList.contains(ClassName$1.ACTIVE);
-            $(input).trigger('change');
-          }
-
-          input.focus();
-          addAriaPressed = false;
-        }
+      if (Button._disabled(this._element)) {
+        return;
       }
 
-      if (!(this._element.hasAttribute('disabled') || this._element.classList.contains('disabled'))) {
-        if (addAriaPressed) {
-          this._element.setAttribute('aria-pressed', !this._element.classList.contains(ClassName$1.ACTIVE));
-        }
+      var c = !Button._checked(this._element);
 
-        if (triggerChangeEvent) {
-          $(this._element).toggleClass(ClassName$1.ACTIVE);
-        }
+      var input = this._element.querySelector(Selector$1.INPUT);
+
+      if (input) {
+        input.checked = c;
+        $(input).trigger('change');
+      } else {
+        this._element.setAttribute('aria-pressed', c);
+
+        Button._update(this._element);
       }
     };
 
@@ -521,6 +490,29 @@
       this._element = null;
     } // Static
     ;
+
+    Button._update = function _update(e) {
+      e.classList.toggle(ClassName$1.ACTIVE, Button._checked(e));
+    };
+
+    Button._checked = function _checked(e) {
+      var input = e.querySelector(Selector$1.INPUT);
+
+      if (input) {
+        return input.checked;
+      }
+
+      return e.getAttribute('aria-pressed') === 'true';
+    };
+
+    Button._disabled = function _disabled(e) {
+      if (e.hasAttribute('disabled') || e.classList.contains('disabled')) {
+        return true;
+      }
+
+      var input = e.querySelector(Selector$1.INPUT);
+      return input && (input.hasAttribute('disabled') || input.classList.contains('disabled'));
+    };
 
     Button._jQueryInterface = function _jQueryInterface(config) {
       return this.each(function () {
@@ -553,58 +545,56 @@
    */
 
 
-  $(document).on(Event$1.CLICK_DATA_API, Selector$1.DATA_TOGGLE_CARROT, function (event) {
-    var button = event.target;
+  $(document).on(Event$1.CHANGE_DATA_API, Selector$1.DATA_TOGGLES_INPUTS, function (event) {
+    // Update all related inputs on change.
+    var t = $(this);
 
-    if (!$(button).hasClass(ClassName$1.BUTTON)) {
-      button = $(button).closest(Selector$1.BUTTON)[0];
+    if (event.target.type === 'radio') {
+      t = t.add(document.getElementsByName(event.target.name));
     }
 
-    if (!button || button.hasAttribute('disabled') || button.classList.contains('disabled')) {
+    t.closest(Selector$1.BUTTON).each(function () {
+      Button._update(this);
+    });
+  }).on(Event$1.CLICK_DATA_API, Selector$1.DATA_TOGGLE_CARROT, function (event) {
+    // Find the containing .btn.
+    var btn = $(event.target);
+
+    if (!btn.hasClass(ClassName$1.BUTTON)) {
+      btn = btn.closest(Selector$1.BUTTON);
+    }
+
+    if (!btn.length) {
+      return;
+    } // Don't allow disabled buttons to be toggled.
+
+
+    if (Button._disabled(btn[0])) {
       event.preventDefault(); // work around Firefox bug #1540995
-    } else {
-      var inputBtn = button.querySelector(Selector$1.INPUT);
 
-      if (inputBtn && (inputBtn.hasAttribute('disabled') || inputBtn.classList.contains('disabled'))) {
-        event.preventDefault(); // work around Firefox bug #1540995
+      return;
+    } // label.btn > input will trigger a change event for the same click so we
+    // don't repeat the toggle here.
 
-        return;
-      }
 
-      Button._jQueryInterface.call($(button), 'toggle');
-    }
+    if (event.target.tagName === 'INPUT' || btn.length && btn[0].tagName === 'LABEL') {
+      return;
+    } // Toggle the btn.
+
+
+    Button._jQueryInterface.call(btn, 'toggle'); // div.btn may not accept focus, so we give it to its input.
+
+
+    btn.find(Selector$1.INPUT).trigger('focus');
   }).on(Event$1.FOCUS_BLUR_DATA_API, Selector$1.DATA_TOGGLE_CARROT, function (event) {
-    var button = $(event.target).closest(Selector$1.BUTTON)[0];
-    $(button).toggleClass(ClassName$1.FOCUS, /^focus(in)?$/.test(event.type));
+    // Add/remove class "focus" on focus[in]/focusout events.
+    $(event.target).closest(Selector$1.BUTTON).toggleClass(ClassName$1.FOCUS, /^focus(in)?$/.test(event.type));
   });
-  $(window).on(Event$1.LOAD_DATA_API, function () {
-    // ensure correct active class is set to match the controls' actual values/states
-    // find all checkboxes/readio buttons inside data-toggle groups
-    var buttons = [].slice.call(document.querySelectorAll(Selector$1.DATA_TOGGLES_BUTTONS));
-
-    for (var i = 0, len = buttons.length; i < len; i++) {
-      var button = buttons[i];
-      var input = button.querySelector(Selector$1.INPUT);
-
-      if (input.checked || input.hasAttribute('checked')) {
-        button.classList.add(ClassName$1.ACTIVE);
-      } else {
-        button.classList.remove(ClassName$1.ACTIVE);
-      }
-    } // find all button toggles
-
-
-    buttons = [].slice.call(document.querySelectorAll(Selector$1.DATA_TOGGLE));
-
-    for (var _i = 0, _len = buttons.length; _i < _len; _i++) {
-      var _button = buttons[_i];
-
-      if (_button.getAttribute('aria-pressed') === 'true') {
-        _button.classList.add(ClassName$1.ACTIVE);
-      } else {
-        _button.classList.remove(ClassName$1.ACTIVE);
-      }
-    }
+  $(window).on(Event$1.LOAD_PAGESHOW_DATA_API, function () {
+    // Ensure correct active class is set to match the controls' actual values/states.
+    $(Selector$1.DATA_TOGGLE_BUTTONS).each(function () {
+      Button._update(this);
+    });
   });
   /**
    * ------------------------------------------------------------------------
@@ -707,9 +697,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Carousel =
-  /*#__PURE__*/
-  function () {
+  var Carousel = /*#__PURE__*/function () {
     function Carousel(element, config) {
       this._items = null;
       this._interval = null;
@@ -1265,9 +1253,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Collapse =
-  /*#__PURE__*/
-  function () {
+  var Collapse = /*#__PURE__*/function () {
     function Collapse(element, config) {
       this._isTransitioning = false;
       this._element = element;
@@ -1661,9 +1647,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Dropdown =
-  /*#__PURE__*/
-  function () {
+  var Dropdown = /*#__PURE__*/function () {
     function Dropdown(element, config) {
       this._element = element;
       this._popper = null;
@@ -2172,9 +2156,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Modal =
-  /*#__PURE__*/
-  function () {
+  var Modal = /*#__PURE__*/function () {
     function Modal(element, config) {
       this._config = this._getConfig(config);
       this._element = element;
@@ -2413,9 +2395,13 @@
     _proto._setEscapeEvent = function _setEscapeEvent() {
       var _this6 = this;
 
-      if (this._isShown && this._config.keyboard) {
+      if (this._isShown) {
         $(this._element).on(Event$5.KEYDOWN_DISMISS, function (event) {
-          if (event.which === ESCAPE_KEYCODE$1) {
+          if (_this6._config.keyboard && event.which === ESCAPE_KEYCODE$1) {
+            event.preventDefault();
+
+            _this6.hide();
+          } else if (!_this6._config.keyboard && event.which === ESCAPE_KEYCODE$1) {
             _this6._triggerBackdropTransition();
           }
         });
@@ -2738,7 +2724,7 @@
     h5: [],
     h6: [],
     i: [],
-    img: ['src', 'alt', 'title', 'width', 'height'],
+    img: ['src', 'srcset', 'alt', 'title', 'width', 'height'],
     li: [],
     ol: [],
     p: [],
@@ -2772,7 +2758,7 @@
 
     if (allowedAttributeList.indexOf(attrName) !== -1) {
       if (uriAttrs.indexOf(attrName) !== -1) {
-        return Boolean(attr.nodeValue.match(SAFE_URL_PATTERN) || attr.nodeValue.match(DATA_URL_PATTERN));
+        return SAFE_URL_PATTERN.test(attr.nodeValue) || DATA_URL_PATTERN.test(attr.nodeValue);
       }
 
       return true;
@@ -2782,8 +2768,8 @@
       return attrRegex instanceof RegExp;
     }); // Check if a regular expression validates the attribute.
 
-    for (var i = 0, l = regExp.length; i < l; i++) {
-      if (attrName.match(regExp[i])) {
+    for (var i = 0, len = regExp.length; i < len; i++) {
+      if (regExp[i].test(attrName)) {
         return true;
       }
     }
@@ -2926,9 +2912,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Tooltip =
-  /*#__PURE__*/
-  function () {
+  var Tooltip = /*#__PURE__*/function () {
     function Tooltip(element, config) {
       if (typeof Popper === 'undefined') {
         throw new TypeError('Bootstrap\'s tooltips require Popper.js (https://popper.js.org/)');
@@ -3607,9 +3591,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Popover =
-  /*#__PURE__*/
-  function (_Tooltip) {
+  var Popover = /*#__PURE__*/function (_Tooltip) {
     _inheritsLoose(Popover, _Tooltip);
 
     function Popover() {
@@ -3795,9 +3777,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var ScrollSpy =
-  /*#__PURE__*/
-  function () {
+  var ScrollSpy = /*#__PURE__*/function () {
     function ScrollSpy(element, config) {
       var _this = this;
 
@@ -4089,9 +4069,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Tab =
-  /*#__PURE__*/
-  function () {
+  var Tab = /*#__PURE__*/function () {
     function Tab(element) {
       this._element = element;
     } // Getters
@@ -4325,9 +4303,7 @@
    * ------------------------------------------------------------------------
    */
 
-  var Toast =
-  /*#__PURE__*/
-  function () {
+  var Toast = /*#__PURE__*/function () {
     function Toast(element, config) {
       this._element = element;
       this._config = this._getConfig(config);
